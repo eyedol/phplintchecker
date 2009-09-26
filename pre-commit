@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#http://blueparabola.com/blog/subversion-commit-hooks-php
+
 REPOS="$1"
 TXN="$2"
 
@@ -10,3 +12,17 @@ GREP="/bin/egrep"
 SED="/bin/sed"
 
 CHANGED=`$SVNLOOK changed -t "$TXN" "$REPOS" | $GREP "^[U|A]" | $AWK '{print $2}' | $GREP \\.php$`
+
+for FILE in $CHANGED
+do
+    MESSAGE = `$SVNLOOK cat -t "$TXN" "$REPOS" "$FILE" | $PHP -l` 
+    if [ $? -ne 0 ]
+    then
+        echo 1>&2
+        echo "***************************" 1>&2
+        echo "PHP error in: $FILE:" 1>&2
+        echo `echo "$MESSAGE" | $SED "s| -| $FILE|g"` 1>&2 
+        echo "***************************" 1>&2
+        exit 1
+    fi
+done
