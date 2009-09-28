@@ -1,28 +1,40 @@
 #!/bin/bash
 
-#http://blueparabola.com/blog/subversion-commit-hooks-php
+#Credit: http://blueparabola.com/blog/subversion-commit-hooks-php
+# Added few modifications to check for drupal modules and coding standards.
 
-REPOS="$1"
+REPOS="$1" 
 TXN="$2"
 
-PHP=""
+PHP="/usr/bin/php"
 SVNLOOK="/usr/bin/svnlook"
 AWK="/usr/bin/awk"
 GREP="/bin/egrep"
 SED="/bin/sed"
+DrupalCODINGSTANDARD="//home/eyedol/Work/Workspace/phplinkchecker/code-style.pl"
+EXITCODE=0
 
-CHANGED=`$SVNLOOK changed -t "$TXN" "$REPOS" | $GREP "^[U|A]" | $AWK '{print $2}' | $GREP \\.php$`
+CHANGED=`$SVNLOOK changed -t "$TXN" "$REPOS" | $GREP "^[U|A]" | $AWK '$2 ~ /\.(php|phtml|inc|module)$/ {print $2}'`
 
 for FILE in $CHANGED
-do
-    MESSAGE = `$SVNLOOK cat -t "$TXN" "$REPOS" "$FILE" | $PHP -l` 
-    if [ $? -ne 0 ]
-    then
-        echo 1>&2
-        echo "***************************" 1>&2
-        echo "PHP error in: $FILE:" 1>&2
+do 
+    MESSAGE=`$SVNLOOK cat -t "$TXN" "$REPOS" "$FILE" | $PHP -l` 
+    if [ $? -ne 0 ] 
+    then 
+        echo 1>&2 
+        echo "***********************************" 1>&2 
+        echo "PHP error in: $FILE:" 1>&2 
         echo `echo "$MESSAGE" | $SED "s| -| $FILE|g"` 1>&2 
-        echo "***************************" 1>&2
-        exit 1
-    fi
+        echo "***********************************" 1>&2 
+        EXITCODE=1
+    else
+        STNDOUTPUT=`$SVNLOOK cat -t "$TXN" "$REPOS" "$FILE" | $DrupalCODINGSTANDARD`
+
+        if [ -n "$STNDOUTPUT" ]
+        then
+            echo `echo "$STNDOUTPUT"` 1>&2
+            EXITCODE=1
+        fi
+    fi 
 done
+exit $EXITCODE
